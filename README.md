@@ -1,194 +1,106 @@
-# Banking Transaction Visualizer using Directed Graphs
+# Banking Transaction Visualizer
 
-## Overview
-
-The Banking Transaction Visualizer is a mini project developed using Python to simulate concurrent banking operations and visualize transaction dependencies using Directed Graphs.
-
-The project demonstrates how modern banking systems maintain transaction consistency and avoid conflicts during simultaneous ATM, online banking, and fund transfer operations.
-
-This project integrates concepts from:
-- Discrete Mathematics
-- Database Management Systems
-- Operating Systems
-- Graph Theory
+A Python mini-project that simulates concurrent banking transactions,
+detects conflicts, builds a precedence graph, and runs DFS cycle
+detection — all with a live Tkinter GUI.
 
 ---
 
-# Features
+## Quick Start
 
-- Deposit, Withdrawal, and Fund Transfer Simulation
-- Multiple Users Accessing Same Account
-- Conflict Detection
-- Automatic Precedence Graph Generation
-- Directed Graph Visualization
-- DFS-Based Cycle Detection
-- Safe and Unsafe Schedule Verification
-- Rollback Recovery Simulation
-- Transaction History Tracking
-- Live Transaction Execution Visualization
-- Quiz Mode for Learning Transaction Safety
-
----
-
-# Concepts Used
-
-## Directed Graphs
-Transactions are represented as nodes and dependencies are represented as edges.
-
-## DFS (Depth First Search)
-Used to traverse transaction graphs and detect cycles.
-
-## Cycle Detection
-Determines whether a transaction schedule is safe or unsafe.
-
-## Transaction Scheduling
-Ensures conflict-free execution of concurrent transactions.
-
----
-
-# Real-World Applications
-
-- ATM Systems
-- Mobile Banking Applications
-- Online Payment Gateways
-- Financial Transaction Systems
-- Database Concurrency Control
-
----
-
-# Technologies Used
-
-| Technology | Purpose |
-|---|---|
-| Python | Core Programming |
-| Tkinter | GUI Development |
-| NetworkX | Graph Generation |
-| Matplotlib | Graph Visualization |
-| JSON / SQLite | Data Storage |
-
----
-
-# Project Structure
+### 1. Install dependencies
 
 ```bash
-Banking-Transaction-Visualizer/
-│
-├── assets/
-├── data/
-├── src/
-├── requirements.txt
-├── README.md
-└── LICENSE
+pip install networkx matplotlib
 ```
 
----
-
-# Installation
-
-## Clone Repository
+Tkinter is bundled with Python. If it's missing on Linux:
 
 ```bash
-git clone https://github.com/yourusername/Banking-Transaction-Visualizer.git
+sudo apt install python3-tk   # Debian/Ubuntu
 ```
 
-## Navigate to Project Folder
+### 2. Run the app
 
 ```bash
-cd Banking-Transaction-Visualizer
-```
-
-## Install Dependencies
-
-```bash
-pip install -r requirements.txt
+cd BankingTransactionVisualizer
+python main.py
 ```
 
 ---
 
-# Run the Project
+## Project Structure
 
-```bash
-python src/main.py
+```
+BankingTransactionVisualizer/
+├── main.py              # GUI — entry point
+├── accounts.py          # Account class (deposit/withdraw/rollback)
+├── transactions.py      # Transaction class + schedule builder
+├── conflict_detector.py # Detects read-write / write-write conflicts
+├── graph_generator.py   # Builds & draws the precedence graph
+├── cycle_detection.py   # DFS cycle detection
+├── rollback.py          # Checkpoint + rollback manager
+├── scheduler.py         # Executes a schedule against accounts
+└── README.md
 ```
 
 ---
 
-# Sample Workflow
+## Tabs
 
-1. User performs Deposit/Withdrawal/Transfer
-2. System checks transaction conflicts
-3. Precedence graph is generated
-4. DFS algorithm checks cycles
-5. Schedule marked SAFE or UNSAFE
-6. Rollback recovery executed if required
+| Tab | What it does |
+|-----|-------------|
+| **Accounts** | View balances, deposit/withdraw manually, reset |
+| **Scheduler** | Enter or pick a preset schedule, run it, see logs |
+| **Graph / DFS** | View the auto-generated precedence graph after running |
+| **Quiz Mode** | Guess Safe/Unsafe → graph revealed after answer |
 
 ---
 
-# Example Transaction Graph
+## How a Schedule Works
 
-```text
-T1 → T2 → T3
+Each line in the Scheduler editor is one operation:
+
+```
+T1  read   A   0
+T2  write  A  -500
+T1  write  B  2000
 ```
 
-Safe Schedule
-
-```text
-T1 → T2 → T3 → T1
-```
-
-Unsafe Schedule (Cycle Detected)
-
----
-
-# Algorithms Used
-
-## DFS Cycle Detection
-
-Time Complexity:
-```text
-O(V + E)
-```
-
-Where:
-- V = Number of Transactions
-- E = Dependency Edges
+| Column | Values |
+|--------|--------|
+| TID | T1, T2, T3, … |
+| OP | `read` or `write` |
+| ACCOUNT | A, B, C, X |
+| AMOUNT | +deposit / −withdraw / 0 for read |
 
 ---
 
-# Future Enhancements
+## Preset Schedules
 
-- AI-Based Fraud Detection
-- Cloud Database Integration
-- Multi-Bank Transaction Simulation
-- Blockchain Transaction Verification
-- Real-Time API Integration
-
----
-
-# Screenshots
-
-(Yet to add)
+- **Safe Schedule** — T1 and T2 on different accounts, no conflict
+- **Unsafe — Write-Write** — both transactions write to A → cycle
+- **Unsafe — Cycle T1↔T2** — T1 reads A then T2 writes A; T2 reads B then T1 writes B
+- **3-Transaction Safe** — linear chain, no cycle
 
 ---
 
-### Learning Outcomes
+## Key Concepts
 
-This project helps understand:
-- Graph Theory Applications
-- Concurrency Control
-- Conflict Serializability
-- Transaction Scheduling
-- Real-Time Banking Systems
+### Conflict
+Two operations from different transactions on the **same account** where **at least one is a WRITE**.
 
----
+### Precedence Graph
+An edge `Ti → Tj` means Ti must execute before Tj.
 
-### Author
-
-##### SHREEJA HEBBAR
-Computer Science Engineering Student
+### DFS Cycle Detection
+If the precedence graph has a cycle, the schedule is **serializable-unsafe** → rollback.
 
 ---
 
-### License
+## Requirements
 
-This project is licensed under the MIT License.
+- Python 3.8+
+- networkx
+- matplotlib
+- tkinter (standard library)
