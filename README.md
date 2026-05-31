@@ -8,6 +8,30 @@ detection — all with a live Tkinter GUI.
 
 ## Quick Start
 
+### Browser frontend
+
+Open this file in your browser:
+
+```text
+frontend/index.html
+```
+
+The browser version uses HTML, CSS, and JavaScript with separate dashboard pages:
+
+- `frontend/index.html` - overview dashboard
+- `frontend/accounts.html` - deposit, withdraw, and transfer accounts
+- `frontend/graph.html` - precedence graphs, live tracking, conflicts, and rollback
+- `frontend/quiz.html` - safe/unsafe schedule quiz mode
+
+Supported browser operations:
+
+```text
+T1  read      A      0
+T2  deposit   A      1000
+T3  withdraw  B      500
+T4  transfer  A      B      1500
+```
+
 ### 1. Install dependencies
 
 ```bash
@@ -70,7 +94,7 @@ T1  write  B  2000
 | Column | Values |
 |--------|--------|
 | TID | T1, T2, T3, … |
-| OP | `read` or `write` |
+| OP | `read` or `write` in Tkinter; `read`, `deposit`, `withdraw`, or `transfer` in the browser frontend |
 | ACCOUNT | A, B, C, X |
 | AMOUNT | +deposit / −withdraw / 0 for read |
 

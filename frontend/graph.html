@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Precedence Graphs | Banking Transaction Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="graph">
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Concurrency Risk Engine</p>
+          <h1>Precedence Graphs & Live Tracking</h1>
+        </div>
+        <div class="status-pill" id="systemStatus">Ready</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link" href="index.html">Dashboard</a>
+        <a class="nav-link" href="accounts.html">Deposit / Withdraw</a>
+        <a class="nav-link active" href="graph.html">Precedence Graphs</a>
+        <a class="nav-link" href="quiz.html">Quiz Mode</a>
+      </nav>
+
+      <section class="ops-strip" aria-label="Bank operations summary">
+        <article class="ops-card">
+          <span>Ledger Volume</span>
+          <strong id="ledgerVolume">₹0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Active Transactions</span>
+          <strong id="activeTxnCount">0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Conflict Edges</span>
+          <strong id="conflictCount">0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Risk State</span>
+          <strong id="riskState">Cleared</strong>
+        </article>
+      </section>
+
+      <section class="accounts-strip" id="accountCards" aria-label="Accounts"></section>
+
+      <section class="dashboard-grid">
+        <section class="panel schedule-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Ledger Queue</p>
+              <h2>Transaction Batch</h2>
+            </div>
+            <select id="presetSelect" aria-label="Preset schedule"></select>
+          </div>
+          <textarea id="scheduleEditor" spellcheck="false" aria-label="Schedule editor"></textarea>
+          <div class="button-row">
+            <button class="primary-button" id="runBtn" type="button">Run Animation</button>
+            <button class="secondary-button" id="resetBtn" type="button">Reset</button>
+            <button class="danger-button" id="rollbackBtn" type="button">Rollback</button>
+          </div>
+        </section>
+
+        <section class="panel transactions-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Live Core</p>
+              <h2>Processing Stream</h2>
+            </div>
+            <div class="metric" id="stepMetric">0 / 0</div>
+          </div>
+          <div class="transaction-list" id="transactionList"></div>
+          <div class="conflict-note" id="conflictNote">No conflicts calculated yet.</div>
+        </section>
+
+        <section class="panel graph-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Risk Graph</p>
+              <h2>Precedence Network</h2>
+            </div>
+            <div class="metric" id="graphMetric">Safe</div>
+          </div>
+          <canvas id="graphCanvas" width="900" height="560" aria-label="Precedence graph"></canvas>
+        </section>
+
+        <section class="panel log-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Audit Trail</p>
+              <h2>Ledger Journal</h2>
+            </div>
+          </div>
+          <pre id="executionLog"></pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

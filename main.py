@@ -17,12 +17,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import networkx as nx
 
 from accounts import Account
-from transactions import build_schedule
+from transactions import Operation, build_schedule
 from conflict_detector import detect_conflicts
 from graph_generator import build_precedence_graph, draw_graph
 from cycle_detection import has_cycle, find_cycle_path
 from rollback import RollbackManager
-from scheduler import execute_schedule
 
 # ─────────────────────────────────────────────
 # Colour palette
@@ -123,6 +122,10 @@ class BankingApp(tk.Tk):
         }
         self.rollback_mgr = RollbackManager()
         self.current_schedule = []
+        self.animation_job = None
+        self.animation_index = 0
+        self.animation_logs = []
+        self.conflict_rows = set()
         self.quiz_idx = 0
 
         # Build UI
@@ -282,84 +285,156 @@ class BankingApp(tk.Tk):
     def _build_scheduler_tab(self):
         f = self.tab_scheduler
 
-        left = tk.Frame(f, bg=BG)
-        left.pack(side="left", fill="both", expand=True, padx=12, pady=12)
+        top = tk.Frame(f, bg=BG)
+        top.pack(fill="x", padx=12, pady=(12, 6))
 
-        right = tk.Frame(f, bg=BG)
-        right.pack(side="right", fill="both", expand=True, padx=12, pady=12)
+        tk.Label(top, text="Live Scheduler Dashboard", bg=BG, fg=ACCENT,
+                 font=FONT_H).pack(anchor="w")
+        tk.Label(top, text="Transactions, execution log, and precedence graph stay visible while the schedule runs.",
+                 bg=BG, fg=SUBTEXT, font=FONT_S).pack(anchor="w", pady=(2, 0))
 
-        # ── Left: Schedule editor ──
+        body = tk.Frame(f, bg=BG)
+        body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        body.columnconfigure(0, weight=2)
+        body.columnconfigure(1, weight=2)
+        body.columnconfigure(2, weight=3)
+        body.rowconfigure(0, weight=1)
+
+        left = tk.Frame(body, bg=BG)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+
+        middle = tk.Frame(body, bg=BG)
+        middle.grid(row=0, column=1, sticky="nsew", padx=8)
+
+        right = tk.Frame(body, bg=BG)
+        right.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+
         tk.Label(left, text="Schedule Editor", bg=BG, fg=ACCENT,
                  font=FONT_H).pack(anchor="w")
-        tk.Label(left, text="Format: TID  OP  ACCOUNT  AMOUNT\n"
-                             "OP: read or write | AMOUNT: positive=deposit, negative=withdraw",
-                 bg=BG, fg=SUBTEXT, font=FONT_S, justify="left").pack(anchor="w", pady=(2, 6))
+        tk.Label(left, text="TID  OP  ACCOUNT  AMOUNT",
+                 bg=BG, fg=SUBTEXT, font=FONT_S).pack(anchor="w", pady=(2, 6))
 
         self.schedule_editor = scrolledtext.ScrolledText(
-            left, width=44, height=14, bg=PANEL, fg=TEXT,
+            left, width=36, height=13, bg=PANEL, fg=TEXT,
             insertbackground=TEXT, font=("Courier New", 11),
             relief="flat", bd=0)
-        self.schedule_editor.pack(fill="both", expand=True)
-        self._load_preset_text("Safe Schedule")
+        self.schedule_editor.pack(fill="both", expand=False)
 
-        # Presets
         pf = tk.Frame(left, bg=BG)
-        pf.pack(fill="x", pady=6)
+        pf.pack(fill="x", pady=(8, 4))
         tk.Label(pf, text="Preset:", bg=BG, fg=TEXT, font=FONT_B).pack(side="left")
         self.preset_var = tk.StringVar(value="Safe Schedule")
         combo = ttk.Combobox(pf, textvariable=self.preset_var,
-                             values=list(PRESETS.keys()), width=24,
+                             values=list(PRESETS.keys()), width=22,
                              font=FONT_B, state="readonly")
-        combo.pack(side="left", padx=6)
+        combo.pack(side="left", padx=(6, 0), fill="x", expand=True)
         combo.bind("<<ComboboxSelected>>",
                    lambda e: self._load_preset_text(self.preset_var.get()))
 
-        btn_run = tk.Button(left, text="▶  RUN SCHEDULE",
-                            command=self._run_schedule,
-                            bg=ACCENT, fg=BG, font=FONT_H,
-                            relief="flat", padx=20, pady=8, cursor="hand2")
-        btn_run.pack(pady=6)
+        btns = tk.Frame(left, bg=BG)
+        btns.pack(fill="x", pady=6)
+        self.run_button = tk.Button(btns, text="RUN ANIMATION",
+                                    command=self._run_schedule,
+                                    bg=ACCENT, fg=BG, font=FONT_H,
+                                    relief="flat", padx=14, pady=8, cursor="hand2")
+        self.run_button.pack(side="left", fill="x", expand=True, padx=(0, 6))
 
-        # ── Right: Execution log ──
+        btn_rollback = tk.Button(btns, text="ROLLBACK",
+                                 command=self._do_rollback,
+                                 bg=ACCENT2, fg="white", font=FONT_B,
+                                 relief="flat", padx=12, pady=8, cursor="hand2")
+        btn_rollback.pack(side="left")
+
+        self.status_banner = tk.Label(left, text="Ready to run",
+                                      bg=PANEL, fg=TEXT, font=FONT_H,
+                                      padx=10, pady=10)
+        self.status_banner.pack(fill="x", pady=(8, 0))
+
+        tk.Label(middle, text="Transactions", bg=BG, fg=ACCENT,
+                 font=FONT_H).pack(anchor="w")
+        self.txn_hint = tk.Label(middle, text="Rows highlight as each operation executes.",
+                                 bg=BG, fg=SUBTEXT, font=FONT_S)
+        self.txn_hint.pack(anchor="w", pady=(2, 6))
+
+        stream = tk.Frame(middle, bg=PANEL)
+        stream.pack(fill="both", expand=True)
+        self.txn_canvas = tk.Canvas(stream, bg=PANEL, highlightthickness=0)
+        txn_scroll = ttk.Scrollbar(stream, orient="vertical",
+                                   command=self.txn_canvas.yview)
+        self.txn_rows_frame = tk.Frame(self.txn_canvas, bg=PANEL)
+        self.txn_rows_frame.bind(
+            "<Configure>",
+            lambda e: self.txn_canvas.configure(scrollregion=self.txn_canvas.bbox("all")))
+        self.txn_canvas.create_window((0, 0), window=self.txn_rows_frame,
+                                      anchor="nw")
+        self.txn_canvas.configure(yscrollcommand=txn_scroll.set)
+        self.txn_canvas.pack(side="left", fill="both", expand=True)
+        txn_scroll.pack(side="right", fill="y")
+        self.txn_rows = []
+
+        self.conflict_summary = tk.Label(middle, text="No conflicts calculated yet.",
+                                         bg=BG, fg=SUBTEXT, font=FONT_B,
+                                         wraplength=360, justify="left")
+        self.conflict_summary.pack(fill="x", pady=(8, 0))
+
+        tk.Label(right, text="Precedence Graph", bg=BG, fg=ACCENT,
+                 font=FONT_H).pack(anchor="w")
+        self.live_fig, self.live_ax = plt.subplots(figsize=(5.4, 3.6))
+        self.live_fig.patch.set_facecolor(BG)
+        self.live_ax.set_facecolor(BG)
+        self.live_canvas = FigureCanvasTkAgg(self.live_fig, master=right)
+        self.live_canvas.get_tk_widget().pack(fill="both", expand=True,
+                                               pady=(4, 8))
+
         tk.Label(right, text="Execution Log", bg=BG, fg=ACCENT,
                  font=FONT_H).pack(anchor="w")
 
         self.exec_log = scrolledtext.ScrolledText(
-            right, width=46, height=20, bg=PANEL, fg=TEXT,
+            right, width=44, height=9, bg=PANEL, fg=TEXT,
             insertbackground=TEXT, font=("Courier New", 10),
             relief="flat", bd=0, state="disabled")
-        self.exec_log.pack(fill="both", expand=True)
+        self.exec_log.pack(fill="both", expand=False)
 
-        self.status_banner = tk.Label(right, text="",
-                                      bg=BG, fg=TEXT, font=FONT_H)
-        self.status_banner.pack(pady=6)
-
-        btn_rollback = tk.Button(right, text="↺ ROLLBACK",
-                                 command=self._do_rollback,
-                                 bg=ACCENT2, fg="white", font=FONT_B,
-                                 relief="flat", padx=12, pady=5, cursor="hand2")
-        btn_rollback.pack()
+        self._load_preset_text("Safe Schedule")
+        self._refresh_live_graph([])
 
     def _load_preset_text(self, name):
+        self._cancel_animation()
         steps = PRESETS.get(name, [])
         self.schedule_editor.delete("1.0", "end")
         for tid, op, acc, amt in steps:
             self.schedule_editor.insert("end", f"{tid}  {op}  {acc}  {amt}\n")
+        if hasattr(self, "txn_rows_frame"):
+            self._render_transaction_flow(build_schedule(steps))
+            self._refresh_live_graph([])
+            self.status_banner.config(text="Ready to run", fg=TEXT, bg=PANEL)
+            self.conflict_summary.config(text="No conflicts calculated yet.",
+                                         fg=SUBTEXT)
 
     def _parse_editor(self):
         lines = self.schedule_editor.get("1.0", "end").strip().splitlines()
         schedule = []
-        for ln in lines:
+        for line_no, ln in enumerate(lines, start=1):
             parts = ln.split()
             if len(parts) < 3:
                 continue
             tid, op, acc = parts[0], parts[1].lower(), parts[2].upper()
-            amount = float(parts[3]) if len(parts) >= 4 else 0
+            if op not in (Operation.READ, Operation.WRITE):
+                raise ValueError(f"Line {line_no}: op must be read or write.")
+            try:
+                amount = float(parts[3]) if len(parts) >= 4 else 0
+            except ValueError as exc:
+                raise ValueError(f"Line {line_no}: amount must be a number.") from exc
             schedule.append((tid, op, acc, amount))
         return schedule
 
     def _run_schedule(self):
-        raw = self._parse_editor()
+        self._cancel_animation()
+        try:
+            raw = self._parse_editor()
+        except ValueError as exc:
+            messagebox.showerror("Input Error", str(exc))
+            return
         if not raw:
             messagebox.showwarning("Empty", "No schedule to run.")
             return
@@ -367,47 +442,190 @@ class BankingApp(tk.Tk):
         self.rollback_mgr.save_checkpoint(self.accounts)
         schedule = build_schedule(raw)
         self.current_schedule = schedule
+        self.animation_index = 0
+        self.animation_logs = [
+            "=" * 44,
+            " EXECUTING SCHEDULE",
+            "=" * 44,
+        ]
+        self.conflict_rows = self._conflict_indexes(schedule)
+        self._render_transaction_flow(schedule)
+        self._write_log(self.exec_log, "\n".join(self.animation_logs))
+        self._refresh_live_graph([])
+        self.status_banner.config(text="Running animation...", fg=ACCENT, bg=PANEL)
+        self.run_button.config(state="disabled")
+        self._animate_schedule_step()
 
-        logs = []
-        logs.append("═" * 44)
-        logs.append(" EXECUTING SCHEDULE")
-        logs.append("═" * 44)
+    def _cancel_animation(self):
+        if self.animation_job is not None:
+            self.after_cancel(self.animation_job)
+            self.animation_job = None
+        if hasattr(self, "run_button"):
+            self.run_button.config(state="normal")
 
-        exec_logs = execute_schedule(schedule, self.accounts,
-                                     log_fn=lambda m: None)
-        logs.extend(exec_logs)
+    def _animate_schedule_step(self):
+        if self.animation_index >= len(self.current_schedule):
+            self._finish_schedule_animation()
+            return
 
-        conflicts = detect_conflicts(schedule)
-        logs.append("")
-        logs.append("─" * 44)
-        logs.append(f" CONFLICTS DETECTED: {len(conflicts)}")
-        for c in conflicts:
-            logs.append(f"  {c[0]} ↔ {c[1]} on {c[2]}  [{c[3]}]")
+        index = self.animation_index
+        self._set_transaction_state(index, "active")
+        self._refresh_live_graph(self.current_schedule[:index + 1])
+        self.status_banner.config(
+            text=f"Executing step {index + 1} of {len(self.current_schedule)}",
+            fg=ACCENT,
+            bg=PANEL,
+        )
+        self.animation_job = self.after(650, lambda: self._commit_animated_step(index))
 
+    def _commit_animated_step(self, index):
+        step = self.current_schedule[index]
+        self.animation_logs.append(self._apply_schedule_step(step))
+        self._write_log(self.exec_log, "\n".join(self.animation_logs))
+        self._update_account_labels()
+        state = "conflict" if index in self.conflict_rows else "done"
+        self._set_transaction_state(index, state)
+        self.animation_index += 1
+        self.animation_job = self.after(350, self._animate_schedule_step)
+
+    def _finish_schedule_animation(self):
+        self.animation_job = None
+        self.run_button.config(state="normal")
+
+        conflicts = detect_conflicts(self.current_schedule)
         G = build_precedence_graph(conflicts)
         cycle = has_cycle(G)
         path = find_cycle_path(G)
 
-        logs.append("")
-        logs.append("─" * 44)
+        self.animation_logs.append("")
+        self.animation_logs.append("-" * 44)
+        self.animation_logs.append(f" CONFLICTS DETECTED: {len(conflicts)}")
+        for c in conflicts:
+            self.animation_logs.append(f"  {c[0]} <-> {c[1]} on {c[2]}  [{c[3]}]")
+
+        self.animation_logs.append("")
+        self.animation_logs.append("-" * 44)
         if cycle:
-            logs.append(f" ⚠ CYCLE DETECTED: {' → '.join(path)}")
-            logs.append(" SCHEDULE IS UNSAFE")
-            self.status_banner.config(text="⚠ UNSAFE SCHEDULE", fg=RED, bg=BG)
+            self.animation_logs.append(f" CYCLE DETECTED: {' -> '.join(path)}")
+            self.animation_logs.append(" SCHEDULE IS UNSAFE")
+            self.status_banner.config(text="UNSAFE SCHEDULE", fg=RED, bg=PANEL)
         else:
-            logs.append(" ✓ NO CYCLE FOUND")
-            logs.append(" SCHEDULE IS SAFE")
-            self.status_banner.config(text="✓ SAFE SCHEDULE", fg=GREEN, bg=BG)
+            self.animation_logs.append(" NO CYCLE FOUND")
+            self.animation_logs.append(" SCHEDULE IS SAFE")
+            self.status_banner.config(text="SAFE SCHEDULE", fg=GREEN, bg=PANEL)
+        self.animation_logs.append("=" * 44)
 
-        logs.append("═" * 44)
-
-        self._write_log(self.exec_log, "\n".join(logs))
-        self._update_account_labels()
-
-        # Auto-update graph tab
+        self._write_log(self.exec_log, "\n".join(self.animation_logs))
+        self._refresh_live_graph(self.current_schedule)
         self._draw_main_graph(G, not cycle)
 
+        if conflicts:
+            summary = f"{len(conflicts)} conflict(s): " + ", ".join(
+                f"{a}->{b} on {acc}" for a, b, acc, _reason in conflicts)
+            self.conflict_summary.config(text=summary, fg=RED if cycle else ACCENT2)
+        else:
+            self.conflict_summary.config(text="No conflicts: graph stays empty and safe.",
+                                         fg=GREEN)
+
+    def _apply_schedule_step(self, step):
+        tid = step["tid"]
+        op = step["op"]
+        acc_id = step["account"]
+        amount = step.get("amount", 0)
+
+        if acc_id not in self.accounts:
+            return f"[ERROR] {tid}: Account '{acc_id}' not found."
+
+        acc = self.accounts[acc_id]
+        if op == Operation.READ:
+            return f"[{tid}] READ  {acc_id} ({acc.name}): Rs.{acc.balance}"
+
+        if op == Operation.WRITE:
+            try:
+                if amount > 0:
+                    acc.deposit(amount)
+                    return f"[{tid}] WRITE {acc_id} ({acc.name}): +Rs.{amount} -> Rs.{acc.balance}"
+                if amount < 0:
+                    acc.withdraw(abs(amount))
+                    return f"[{tid}] WRITE {acc_id} ({acc.name}): -Rs.{abs(amount)} -> Rs.{acc.balance}"
+                return f"[{tid}] WRITE {acc_id} ({acc.name}): amount=0, no change"
+            except ValueError as exc:
+                return f"[{tid}] ERROR {acc_id}: {exc}"
+
+        return f"[{tid}] UNKNOWN op '{op}' on {acc_id}"
+
+    def _render_transaction_flow(self, schedule):
+        for child in self.txn_rows_frame.winfo_children():
+            child.destroy()
+        self.txn_rows = []
+
+        if not schedule:
+            tk.Label(self.txn_rows_frame, text="No transactions yet.",
+                     bg=PANEL, fg=SUBTEXT, font=FONT_B, padx=12,
+                     pady=12).pack(fill="x")
+            return
+
+        for idx, step in enumerate(schedule):
+            row = tk.Frame(self.txn_rows_frame, bg=PANEL, padx=8, pady=8,
+                           highlightthickness=1, highlightbackground=BORDER)
+            row.pack(fill="x", padx=8, pady=(8, 0))
+
+            status = tk.Label(row, text="WAIT", bg=PANEL, fg=SUBTEXT,
+                              font=FONT_S, width=7, anchor="w")
+            status.grid(row=0, column=0, sticky="w")
+            main = tk.Label(row,
+                            text=f"{idx + 1:02d}  {step['tid']}  {step['op'].upper()}",
+                            bg=PANEL, fg=TEXT, font=FONT_B, anchor="w")
+            main.grid(row=0, column=1, sticky="ew", padx=6)
+            meta = tk.Label(row,
+                            text=f"{step['account']}  {step.get('amount', 0):g}",
+                            bg=PANEL, fg=SUBTEXT, font=FONT_S, anchor="e")
+            meta.grid(row=0, column=2, sticky="e")
+            row.columnconfigure(1, weight=1)
+            self.txn_rows.append((row, status, main, meta))
+
+    def _set_transaction_state(self, index, state):
+        if index >= len(self.txn_rows):
+            return
+
+        colors = {
+            "idle": (PANEL, SUBTEXT, "WAIT"),
+            "active": ("#243b53", ACCENT, "RUN"),
+            "done": ("#16382f", GREEN, "DONE"),
+            "conflict": ("#412534", ACCENT2, "EDGE"),
+        }
+        bg, fg, label = colors[state]
+        row, status, main, meta = self.txn_rows[index]
+        row.config(bg=bg, highlightbackground=fg)
+        for widget in (status, main, meta):
+            widget.config(bg=bg)
+        status.config(text=label, fg=fg)
+        main.config(fg=TEXT)
+        meta.config(fg=fg if state != "idle" else SUBTEXT)
+        self.txn_canvas.yview_moveto(max(0, index / max(1, len(self.txn_rows))))
+
+    def _refresh_live_graph(self, schedule):
+        conflicts = detect_conflicts(schedule) if schedule else []
+        G = build_precedence_graph(conflicts)
+        is_safe = not has_cycle(G)
+        draw_graph(G, is_safe, ax=self.live_ax, title="Live Precedence Graph")
+        self.live_canvas.draw()
+
+    def _conflict_indexes(self, schedule):
+        indexes = set()
+        for i, s1 in enumerate(schedule):
+            for j in range(i + 1, len(schedule)):
+                s2 = schedule[j]
+                if s1["tid"] == s2["tid"]:
+                    continue
+                if s1["account"] != s2["account"]:
+                    continue
+                if s1["op"] == Operation.WRITE or s2["op"] == Operation.WRITE:
+                    indexes.update({i, j})
+        return indexes
+
     def _do_rollback(self):
+        self._cancel_animation()
         restored = self.rollback_mgr.rollback(self.accounts)
         self._update_account_labels()
         msg = "Rolled back:\n" + "\n".join(restored) if restored else "No checkpoint to roll back."

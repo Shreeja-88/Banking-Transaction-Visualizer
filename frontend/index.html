@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Banking Transaction Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="dashboard">
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Core Banking Operations Console</p>
+          <h1>Banking Transaction Visualizer</h1>
+        </div>
+        <div class="status-pill" id="systemStatus">Ready</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link active" href="index.html">Dashboard</a>
+        <a class="nav-link" href="accounts.html">Deposit / Withdraw</a>
+        <a class="nav-link" href="graph.html">Precedence Graphs</a>
+        <a class="nav-link" href="quiz.html">Quiz Mode</a>
+      </nav>
+
+      <section class="ops-strip" aria-label="Bank operations summary">
+        <article class="ops-card">
+          <span>Ledger Volume</span>
+          <strong id="ledgerVolume">₹0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Active Transactions</span>
+          <strong id="activeTxnCount">0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Conflict Edges</span>
+          <strong id="conflictCount">0</strong>
+        </article>
+        <article class="ops-card">
+          <span>Risk State</span>
+          <strong id="riskState">Cleared</strong>
+        </article>
+      </section>
+
+      <section class="accounts-strip" id="accountCards" aria-label="Accounts"></section>
+
+      <section class="home-grid">
+        <a class="feature-tile" href="accounts.html">
+          <p class="eyebrow">Account Counter</p>
+          <h2>Deposit / Withdraw</h2>
+          <p>Process branch deposits, ATM withdrawals, and fund transfers with live balance updates.</p>
+        </a>
+        <a class="feature-tile" href="graph.html">
+          <p class="eyebrow">Risk Engine</p>
+          <h2>Precedence Graphs</h2>
+          <p>Run batches with more than five transactions, track conflicts, and detect unsafe cycles.</p>
+        </a>
+        <a class="feature-tile" href="quiz.html">
+          <p class="eyebrow">Learning Mode</p>
+          <h2>Quiz Mode</h2>
+          <p>Predict whether a banking schedule is safe before revealing the graph result.</p>
+        </a>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

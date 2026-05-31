@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deposit / Withdraw | Banking Transaction Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="accounts">
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Account Operations Desk</p>
+          <h1>Deposit / Withdraw Accounts</h1>
+        </div>
+        <div class="status-pill" id="systemStatus">Ready</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link" href="index.html">Dashboard</a>
+        <a class="nav-link active" href="accounts.html">Deposit / Withdraw</a>
+        <a class="nav-link" href="graph.html">Precedence Graphs</a>
+        <a class="nav-link" href="quiz.html">Quiz Mode</a>
+      </nav>
+
+      <section class="accounts-strip" id="accountCards" aria-label="Accounts"></section>
+
+      <section class="account-workbench">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Teller Window</p>
+              <h2>Deposit / Withdraw</h2>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              Account
+              <select id="accountSelect"></select>
+            </label>
+            <label>
+              Amount
+              <input id="accountAmount" type="number" min="1" value="1000" />
+            </label>
+          </div>
+          <div class="button-row">
+            <button class="primary-button" id="depositBtn" type="button">Deposit</button>
+            <button class="danger-button" id="withdrawBtn" type="button">Withdraw</button>
+            <button class="secondary-button" id="resetAccountsBtn" type="button">Reset</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Internal Transfer</p>
+              <h2>Fund Transfer</h2>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              From
+              <select id="transferFrom"></select>
+            </label>
+            <label>
+              To
+              <select id="transferTo"></select>
+            </label>
+            <label>
+              Amount
+              <input id="transferAmount" type="number" min="1" value="1500" />
+            </label>
+          </div>
+          <button class="primary-button full-button" id="transferBtn" type="button">Transfer Funds</button>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Audit Trail</p>
+              <h2>Transaction History</h2>
+            </div>
+          </div>
+          <pre id="accountHistory"></pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

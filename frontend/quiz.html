@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz Mode | Banking Transaction Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="quiz">
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Serializable Schedule Lab</p>
+          <h1>Quiz Mode</h1>
+        </div>
+        <div class="status-pill" id="systemStatus">Ready</div>
+      </header>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link" href="index.html">Dashboard</a>
+        <a class="nav-link" href="accounts.html">Deposit / Withdraw</a>
+        <a class="nav-link" href="graph.html">Precedence Graphs</a>
+        <a class="nav-link active" href="quiz.html">Quiz Mode</a>
+      </nav>
+
+      <section class="quiz-layout">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Prediction</p>
+              <h2>Safe or Unsafe?</h2>
+            </div>
+            <div class="metric" id="quizScore">0 / 0</div>
+          </div>
+          <div class="quiz-card" id="quizQuestion"></div>
+          <div class="button-row quiz-actions">
+            <button class="primary-button" id="quizSafeBtn" type="button">Safe</button>
+            <button class="danger-button" id="quizUnsafeBtn" type="button">Unsafe</button>
+            <button class="secondary-button" id="quizNextBtn" type="button">Next</button>
+          </div>
+          <div class="conflict-note" id="quizResult">Pick an answer to reveal the graph result.</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Reveal</p>
+              <h2>Quiz Graph</h2>
+            </div>
+            <div class="metric" id="graphMetric">Ready</div>
+          </div>
+          <canvas id="graphCanvas" width="900" height="560" aria-label="Quiz precedence graph"></canvas>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
