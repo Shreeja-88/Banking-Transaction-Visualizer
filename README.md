@@ -1,8 +1,8 @@
 # Banking Transaction Visualizer
 
-A Python mini-project that simulates concurrent banking transactions,
-detects conflicts, builds a precedence graph, and runs DFS cycle
-detection — all with a live Tkinter GUI.
+![Dashboard Preview](./screenshots/dashboard.png)
+
+A Python mini-project that simulates concurrent banking transactions, detects conflicts, builds a precedence graph, and runs DFS cycle detection.
 
 ---
 
@@ -128,3 +128,20 @@ If the precedence graph has a cycle, the schedule is **serializable-unsafe** →
 - networkx
 - matplotlib
 - tkinter (standard library)
+
+--- 
+## Dashboard
+
+<img src="./screenshots/dashboard.png" width="800">
+
+## Deposit & Withdraw
+
+<img src="./screenshots/deposit&withdraw.png" width="800">
+
+## Transaction Scheduler
+
+<img src="./screenshots/transaction.png" width="800">
+
+## Quiz Mode
+
+<img src="./screenshots/quiz_mode.png" width="800">
